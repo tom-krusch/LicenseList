@@ -12,33 +12,17 @@ struct PrepareLicenseList: BuildToolPlugin {
     }
 
     func sourcePackages(_ pluginWorkDirectory: Path) throws -> Path {
-        let components = pluginWorkDirectory.string.components(separatedBy: "/")
 
-        // 🆕 Xcode 16.3+
-        if components.contains("DerivedData") {
-            var tmpPath = pluginWorkDirectory
-            while tmpPath.lastComponent != "DerivedData" {
-                tmpPath = tmpPath.removingLastComponent()
-                if tmpPath.string == "/" {
-                    throw DerivedDataNotFoundError()
-                }
-            }
-            return tmpPath.appending("SourcePackages")
+        guard pluginWorkDirectory.string.contains("DerivedData") else {
+            throw DerivedDataNotFoundError()
         }
 
-        // Xcode ≤16.2
-        if components.contains("SourcePackages") {
-            var tmpPath = pluginWorkDirectory
-            while tmpPath.lastComponent != "SourcePackages" {
-                tmpPath = tmpPath.removingLastComponent()
-                if tmpPath.string == "/" {
-                    throw SourcePackagesNotFoundError()
-                }
-            }
-            return tmpPath
+        var path = pluginWorkDirectory
+        while path.lastComponent != "Build", path.lastComponent != "SourcePackages" {
+            path = path.removingLastComponent()
         }
 
-        throw SourcePackagesNotFoundError()
+        return path.removingLastComponent().appending("SourcePackages")
     }
 
     func makeBuildCommand(executablePath: Path, sourcePackagesPath: Path, outputPath: Path) -> Command {
