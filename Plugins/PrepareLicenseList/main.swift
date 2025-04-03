@@ -7,15 +7,38 @@ struct PrepareLicenseList: BuildToolPlugin {
         let description: String = "SourcePackages not found"
     }
 
+    struct DerivedDataNotFoundError: Error & CustomStringConvertible {
+        let description: String = "DerivedData not found"
+    }
+
     func sourcePackages(_ pluginWorkDirectory: Path) throws -> Path {
-        var tmpPath = pluginWorkDirectory
-        guard pluginWorkDirectory.string.contains("SourcePackages") else {
-            throw SourcePackagesNotFoundError()
+        let components = pluginWorkDirectory.string.components(separatedBy: "/")
+
+        // 🆕 Xcode 16.3+
+        if components.contains("DerivedData") {
+            var tmpPath = pluginWorkDirectory
+            while tmpPath.lastComponent != "DerivedData" {
+                tmpPath = tmpPath.removingLastComponent()
+                if tmpPath.string == "/" {
+                    throw DerivedDataNotFoundError()
+                }
+            }
+            return tmpPath.appending("SourcePackages")
         }
-        while tmpPath.lastComponent != "SourcePackages" {
-            tmpPath = tmpPath.removingLastComponent()
+
+        // Xcode ≤16.2
+        if components.contains("SourcePackages") {
+            var tmpPath = pluginWorkDirectory
+            while tmpPath.lastComponent != "SourcePackages" {
+                tmpPath = tmpPath.removingLastComponent()
+                if tmpPath.string == "/" {
+                    throw SourcePackagesNotFoundError()
+                }
+            }
+            return tmpPath
         }
-        return tmpPath
+
+        throw SourcePackagesNotFoundError()
     }
 
     func makeBuildCommand(executablePath: Path, sourcePackagesPath: Path, outputPath: Path) -> Command {
